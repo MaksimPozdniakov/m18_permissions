@@ -17,12 +17,18 @@ import java.util.concurrent.Executor
 import android.Manifest
 import android.content.ContentValues
 import android.content.pm.PackageManager
+import android.net.Uri
 import android.provider.MediaStore
 import androidx.camera.core.CameraSelector
 import androidx.camera.core.ImageCaptureException
 import androidx.camera.core.Preview
 import androidx.camera.lifecycle.ProcessCameraProvider
+import androidx.lifecycle.ViewModel
+import androidx.lifecycle.ViewModelProvider
+import androidx.navigation.fragment.findNavController
 import com.bumptech.glide.Glide
+import project.moms.attractions.R
+import project.moms.attractions.data.App
 
 private const val FILE_FORMAT = "yyyy-MM-dd-HH-mm-ss"
 
@@ -32,7 +38,14 @@ class FragmentTakePhoto : Fragment() {
     private val binding : FragmentTakePhotoBinding
         get() { return _binding!! }
 
-    private val viewModel: FragmentTakePhotoViewModel by viewModels()
+    private val viewModel: MainViewModel by viewModels {
+        object : ViewModelProvider.Factory {
+            override fun <T : ViewModel> create(modelClass: Class<T>): T {
+                val galleryDao = (requireContext().applicationContext as App).db.galleryDao()
+                return MainViewModel(galleryDao) as T
+            }
+        }
+    }
 
     private lateinit var executor: Executor
     private val name = SimpleDateFormat(FILE_FORMAT, Locale.US)
@@ -51,8 +64,6 @@ class FragmentTakePhoto : Fragment() {
 
     }
 
-
-
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
     }
@@ -67,6 +78,10 @@ class FragmentTakePhoto : Fragment() {
         executor = ContextCompat.getMainExecutor(requireContext())
 
         binding.takePhotoButton.setOnClickListener { takePhoto() }
+
+        binding.imagePreview.setOnClickListener {
+            findNavController().navigate(R.id.action_fragmentTakePhoto_to_fragmentGallery)
+        }
 
         checkPermissions()
     }
@@ -102,6 +117,11 @@ class FragmentTakePhoto : Fragment() {
             executor,
             object : ImageCapture.OnImageSavedCallback {
                 override fun onImageSaved(outputFileResults: ImageCapture.OutputFileResults) {
+
+                    val savedUri =
+                        outputFileResults
+                            .savedUri?.toString() ?: return // Преобразуем URI в строку и проверяем на null
+
                     Toast.makeText(requireContext(),
                         "Photo saved on: ${outputFileResults.savedUri}",
                         Toast.LENGTH_SHORT
@@ -111,6 +131,15 @@ class FragmentTakePhoto : Fragment() {
                         .load(outputFileResults.savedUri)
                         .circleCrop()
                         .into(binding.imagePreview)
+
+                    // Получаем данные фотографии из URI для добавления в базу
+                    val inputStream = requireContext().contentResolver.openInputStream(Uri.parse(savedUri))
+                    val photoByteArray = inputStream?.readBytes()
+
+                    // Вызываем onSave() во ViewModel, передавая байтовый массив фотографии
+                    photoByteArray?.let { byteArray ->
+                        viewModel.onSave(byteArray)
+                    }
                 }
 
                 override fun onError(exception: ImageCaptureException) {
@@ -118,11 +147,9 @@ class FragmentTakePhoto : Fragment() {
                         "Photo failed: ${exception.message}", Toast.LENGTH_SHORT).show()
                     exception.printStackTrace()
                 }
-
             }
         )
     }
-
 
     private fun startCamera() {
         val cameraProviderFuture = ProcessCameraProvider.getInstance(requireContext())
