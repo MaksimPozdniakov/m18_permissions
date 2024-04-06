@@ -19,9 +19,9 @@ class MainViewModel(
             initialValue = emptyList()
         )
 
-    fun onSave(newPhoto: ByteArray) {
+    fun onSave(newPhoto: ByteArray, date: String) {
         viewModelScope.launch {
-            galleryDao.insert(Photo(0, newPhoto))
+            galleryDao.insert(Photo(0, date, newPhoto))
         }
     }
 }

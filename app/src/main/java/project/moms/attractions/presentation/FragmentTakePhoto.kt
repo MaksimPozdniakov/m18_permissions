@@ -29,6 +29,7 @@ import androidx.navigation.fragment.findNavController
 import com.bumptech.glide.Glide
 import project.moms.attractions.R
 import project.moms.attractions.data.App
+import java.util.Calendar
 
 private const val FILE_FORMAT = "yyyy-MM-dd-HH-mm-ss"
 
@@ -64,6 +65,8 @@ class FragmentTakePhoto : Fragment() {
 
     }
 
+    private var permissionToastShown = false
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
     }
@@ -94,7 +97,10 @@ class FragmentTakePhoto : Fragment() {
 
         if (isAllGranted) {
             startCamera()
-            Toast.makeText(requireContext(), "permission is Granted", Toast.LENGTH_SHORT).show()
+            if (!permissionToastShown) {
+                Toast.makeText(requireContext(), "permission is Granted", Toast.LENGTH_SHORT).show()
+                permissionToastShown = true
+            }
         } else {
             launcher.launch(REQUEST_PERMISSIONS)
         }
@@ -138,7 +144,7 @@ class FragmentTakePhoto : Fragment() {
 
                     // Вызываем onSave() во ViewModel, передавая байтовый массив фотографии
                     photoByteArray?.let { byteArray ->
-                        viewModel.onSave(byteArray)
+                        viewModel.onSave(byteArray, datePhoto())
                     }
                 }
 
@@ -149,6 +155,14 @@ class FragmentTakePhoto : Fragment() {
                 }
             }
         )
+    }
+
+    private fun datePhoto() : String{
+        val dateFormat = SimpleDateFormat("dd-MM-yyyy")
+        val calendar = Calendar.getInstance()
+        val date = calendar.time
+
+        return dateFormat.format(date)
     }
 
     private fun startCamera() {

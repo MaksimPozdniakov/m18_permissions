@@ -8,7 +8,7 @@ import androidx.room.PrimaryKey
 data class Photo(
     @PrimaryKey(autoGenerate = true)
     val id: Int,
-
+    val date: String,
     @ColumnInfo(typeAffinity = ColumnInfo.BLOB)
     val image: ByteArray
 )
